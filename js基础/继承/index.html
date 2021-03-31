@@ -42,6 +42,9 @@
   <div>parent.name // 调用的是 parent 下的属性</div>
   <div>parent.getName() // 调用的是 Parent.prototype 下的属性</div>
   <div>parent.toString() // 调用的是 Object.prototype 下的属性</div>
+  <div>parent 是一个对象，Parent.prototype 也是一个对象，Object.prototype 亦是一个对象，它们之间相互独立，通过 __proto__链接</div>
+  <div>浏览器会在__proto__中搜索属性 或者返回 undefined</div>
+  <div>es6 的 class extends 语法 创建的对象结果与 寄生组合式继承 一样。class 中定义的方法会自动放入prototype中</div>
   <img src="./继承-发展史.png" alt="继承-发展史" width="90%">
   <img src="https://zjl-coder.github.io/front-interview/js%E5%9F%BA%E7%A1%80/%E7%BB%A7%E6%89%BF/index.html" alt="继承-发展史" width="90%">
 </body>
