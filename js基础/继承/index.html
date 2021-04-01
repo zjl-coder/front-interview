@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-<body>
-  <h1>继承发展史</h1>
-  <div>具体实现直接看代码</div>
-  <pre>
-    <code>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="https://my-cdns.github.io/cdn/assets/prism.css" />
+    <script src="https://my-cdns.github.io/cdn/assets/prism.js"></script>
+  </head>
+  <body>
+    <h1>继承发展史</h1>
+    <div>具体实现直接看代码</div>
+    <pre>
+    <code class="language-javascript">
       Object.prototype.__proto__ === null // true
     </code>
   </pre>
-  <div>原型链</div>
-  <pre>
-    <code>
+    <div>原型链</div>
+    <pre>
+    <code class="language-javascript">
       function Parent() {
         this.name = "parent";
         this.list = ["a", "b", "c"];
@@ -33,19 +35,24 @@
        *                  constructor ---> Parent
        *                  __proto__   ---> Object.prototype
        *                                   toString: f()
-       *                                   ... 内置方法
+       *                                    ··· 内置方法 ···
        *                                   constructor: Object
        *                                   __proto__: null 
        */
     </code>
   </pre>
-  <div>parent.name // 调用的是 parent 下的属性</div>
-  <div>parent.getName() // 调用的是 Parent.prototype 下的属性</div>
-  <div>parent.toString() // 调用的是 Object.prototype 下的属性</div>
-  <div>parent 是一个对象，Parent.prototype 也是一个对象，Object.prototype 亦是一个对象，它们之间相互独立，通过 __proto__链接</div>
-  <div>浏览器会在__proto__中搜索属性 或者返回 undefined</div>
-  <div>es6 的 class extends 语法 创建的对象结果与 寄生组合式继承 一样。class 中定义的方法会自动放入prototype中</div>
-  <img src="./继承-发展史.png" alt="继承-发展史" width="90%">
-  <img src="https://zjl-coder.github.io/front-interview/js%E5%9F%BA%E7%A1%80/%E7%BB%A7%E6%89%BF/index.html" alt="继承-发展史" width="90%">
-</body>
+    <div>parent.name // 调用的是 parent 下的属性</div>
+    <div>parent.getName() // 调用的是 Parent.prototype 下的属性</div>
+    <div>parent.toString() // 调用的是 Object.prototype 下的属性</div>
+    <div>
+      parent 是一个对象，Parent.prototype 也是一个对象，Object.prototype
+      亦是一个对象，它们之间相互独立，通过 __proto__链接
+    </div>
+    <div>浏览器会在__proto__中搜索属性 或者返回 undefined</div>
+    <div>
+      es6 的 class extends 语法 创建的对象结果与 寄生组合式继承 一样。class
+      中定义的方法会自动放入prototype中
+    </div>
+    <img src="./继承-发展史.png" alt="继承-发展史" width="90%" />
+  </body>
 </html>
