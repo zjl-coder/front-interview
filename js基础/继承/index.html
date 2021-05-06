@@ -12,35 +12,35 @@
     <h1>继承发展史</h1>
     <div>具体实现直接看代码</div>
     <pre>
-    <code class="language-javascript">
-      Object.prototype.__proto__ === null // true
-    </code>
-  </pre>
+      <code class="language-javascript">
+        Object.prototype.__proto__ === null // true
+      </code>
+    </pre>
     <div>原型链</div>
     <pre>
-    <code class="language-javascript">
-      function Parent() {
-        this.name = "parent";
-        this.list = ["a", "b", "c"];
-      }
-      Parent.prototype.getName = function () {
-        return this.name;
-      }
-      const parent = new Parent();
-      /** parent
-       * name: "parent"
-       * list: ["a", "b", "c"]
-       * __proto__  --->  Parent.prototype
-       *                  getName: f()
-       *                  constructor ---> Parent
-       *                  __proto__   ---> Object.prototype
-       *                                   toString: f()
-       *                                    ··· 内置方法 ···
-       *                                   constructor: Object
-       *                                   __proto__: null 
-       */
-    </code>
-  </pre>
+      <code class="language-javascript">
+        function Parent() {
+          this.name = "parent";
+          this.list = ["a", "b", "c"];
+        }
+        Parent.prototype.getName = function () {
+          return this.name;
+        }
+        const parent = new Parent();
+        /** parent
+        * name: "parent"
+        * list: ["a", "b", "c"]
+        * __proto__  --->  Parent.prototype
+        *                  getName: f()
+        *                  constructor ---> Parent
+        *                  __proto__   ---> Object.prototype
+        *                                   toString: f()
+        *                                    ··· 内置方法 ···
+        *                                   constructor: Object
+        *                                   __proto__: null 
+        */
+      </code>
+    </pre>
     <div>parent.name // 调用的是 parent 下的属性</div>
     <div>parent.getName() // 调用的是 Parent.prototype 下的属性</div>
     <div>parent.toString() // 调用的是 Object.prototype 下的属性</div>
