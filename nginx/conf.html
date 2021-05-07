@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="https://my-cdns.github.io/cdn/assets/prism.css" />
+    <script src="https://my-cdns.github.io/cdn/assets/prism.js"></script>
+  </head>
+  <body>
+    <h1>常用配置</h1>
+    <h6>html 关闭缓存， 资源开启缓存，开启 gzip </h6>
+    <pre>
+      <code class="language-nginx">
+        worker_processes  1; # nginx要开启的进程数 据官方说法，一般开一个就够了 一般可以开4-8个
+
+        events {
+          worker_connections  1024; # 单个后台进程的最大并发数
+        }
+
+        http {
+          include    mime.types;    # 文件扩展名与类型映射表  默认 mime.types; 可指定绝对地址 /etc/nginx/mime.types
+          default_type  application/octet-stream; # 默认文件类型
+
+          # 设置日志模式
+          log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+          access_log  /var/log/nginx/access.log  main; # nginx 访问日志存放位置
+
+          sendfile        on; # 开启高效传输模式
+          #tcp_nopush     on; # 减少网络报文段的数量
+          #keepalive_timeout  0;
+          keepalive_timeout  65; # 保持连接的时间，也叫做超时连接
+
+          etag off; # 分布式系统关闭掉Etag，每台机器生成的etag都会不一样
+
+          # include nginx_proxy.conf; # /usr/local/etc/nginx/nginx_proxy.conf
+          # ..... 其他的配置
+          # 如果我们要添加缓存功能的话，需要创建一个用于存放缓存文件的文件夹。比如我们这里使用 /data/nuget-cache。
+          proxy_cache_path  /data/nuget-cache levels=1:2 keys_zone=nuget-cache:20m max_size=50g inactive=168h;
+          
+          ### gzip 配置
+          # 开启gzip
+          gzip on;
+          # 启用gzip压缩的最小文件；小于设置值的文件将不会被压缩
+          gzip_min_length 1k;
+          # gzip 压缩级别 1-10 
+          gzip_comp_level 2;
+          # 进行压缩的文件类型。
+          gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php image/jpeg image/gif image/png;
+          # 是否在http header中添加Vary: Accept-Encoding，建议开启
+          gzip_vary on;
+
+          # 负载均衡：设置domain
+          # upstream domain {
+          #     server localhost:8000;
+          #     server localhost:8001;
+          # }
+
+          server {
+            listen  8081; # 监听的端口号
+            server_name  xxx.abc.com; # localhost ip 域名 （多个以空格分开）
+
+            ### 开启https
+            # ssl                  on;
+            # ssl_certificate      /daka/program/nginx/conf/server.cer; # pem文件的路径
+            # ssl_certificate_key  /daka/program/nginx/conf/server.key; # key文件的路径
+            # ssl验证相关配置
+            # ssl_session_timeout  5m; # 缓存有效期
+            # ssl_protocols  SSLv2 SSLv3 TLSv1; # 安全链接可选的加密协议
+            # ssl_ciphers  HIGH:!aNULL:!MD5; # 加密算法
+            # ssl_prefer_server_ciphers   on; # 使用服务器端的首选算法
+
+            ## 启动负载均衡
+            # location / {
+            #   # root   html; # Nginx默认值
+            #   # index  index.html index.htm;
+            # 
+            #   proxy_pass http://domain; # 负载均衡配置，请求会被平均分配到8000和8001端口
+            #   proxy_set_header Host $host:$server_port;
+            # }
+
+            ### 限制 ip 白名单和黑名单
+            location / {
+              # root   html; # Nginx默认值
+              root   /usr/share/nginx/html; # 服务默认启动目录（可修改为自己的项目根目录）
+              # 设定Nginx服务器返回的文档名
+              index  index.html index.htm; # 默认访问文件 先找根目录下的index.html，如果没有再找index.htm
+        
+              # 有时候我们的服务器只允许特定主机访问，比如内部OA系统，或者应用的管理后台系统，更或者是某些应用接口，
+              # 这时候我们就需要控制一些IP访问，我们可以直接在location里进行配置。
+              # deny   123.9.51.42; # 限制访问 拒绝访问
+              # allow  45.76.202.231; # 允许访问
+            }
+
+            # 不缓存
+            location ~* \.(html)$ {
+              access_log off; # 关闭访问日志
+              # access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]]; # 设置访问日志
+              # html文件不设置强制缓存时间，协商缓存，使用 Last-Modified
+              # no-cache 会发起往返通信来验证缓存的响应，但如果资源未发生变化，则不会下载，返回304。
+              add_header  Cache-Control  max-age=no-cache;
+              expires -10; #永远过期
+            }
+
+            # 协商缓存
+            # 反向代理
+            location /node {
+              proxy_redirect off; # 关闭重定向url
+              proxy_pass http://localhost:7878; # 反向代理目标地址
+              add_header  Cache-Control  max-age=no-cache; // 不缓存
+              expires -10; #永远过期
+              proxy_cache nuget-cache; # 设置是否开启对后端响应的缓存，值为 zone 的名称, proxy_cache 设置的是 proxy_cache_path中的keys_zone的值。
+              proxy_cache_valid 168h; # proxy_cache_valid 168h;
+              # proxy_ignore_headers的含义是：忽略Cache-Control的请求头控制，依然进行缓存，比如对请求头设置cookie后，默认是不缓存的，需要我们增加忽略配置。
+              proxy_ignore_headers Set-Cookie Cache-Control;
+              # nginx会把响应页面的头信息也一起缓存，包括Set-cookie，导致后面访问页面的用户的cookie被设置成缓存的头。 解决方案，nginx提供proxy_hide_header的指令，可以去掉相关的响应头信息
+              proxy_hide_header Cache-Control; # 去掉Cache响应头信息
+              # proxy_hide_header Set-Cookie; # 去掉Cookie响应头信息
+              # proxy_set_header Host $host; # 配置请求客户端真实的 Host 信息
+              # proxy_set_header X-Real-IP $remote_addr; # 配置请求用户真实的IP信息
+              # proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              # proxy_connect_timeout 300; # 连接超时时间为300秒
+              # proxy_send_timeout 30; # 读取响应超时时间为30秒
+              # proxy_read_timeout 600; # 发送请求超时时间为600秒
+              # proxy_buffering on; # 开启代理缓冲区
+              # proxy_buffer_size 256k; # 响应头的缓冲区设为256k
+              # proxy_buffers 4 128k; # 网页内容缓冲区个数为4，单个大小为128k
+              # nginx会在没有完全读完后端响应的时候就开始向客户端传送数据，所以它会划出一部分缓冲区来专门向客户端传送数据(这部分的大小是由proxy_busy_buffers_size来控制的，建议为proxy_buffers中单个缓冲区大小的2倍)，然后它继续从后端取数据，缓冲区满了之后就写到磁盘的临时文件中。
+              # proxy_busy_buffers_size 256k;
+              # proxy_temp_file_write_size 256k; # 是一次访问能写入的临时文件的大小
+              # proxy_max_temp_file_size 128m; # 缓冲区临时文件最大为 256k  
+              # proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504 http_404; # 项定义了什么情况下进行重试 【error：错误 timeout：超时 invalid_header：无效头 http_500：500 http_502： 502 http_503 http_504 http_404;】                  
+              # proxy_cache_valid 200 302 1h; # 指定 200 302 状态码 缓存有效期
+              # proxy_cache_valid 301 1d; # 指定 301 状态码 缓存有效期
+              # proxy_cache_valid any 1m; # 指定 其他 状态码 缓存有效期
+            }
+
+            # 对于图片，css, 或js这样的，我想使用强制缓存
+            location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
+              access_log off;
+              add_header Cache-Control "public,max-age=30*24*3600"; 作用 http1.1
+              expires 30*24*3600; # 与max-age同时使用，作用 http1.0
+              proxy_pass http://localhost:7878;
+            }
+
+            # 下载功能，url 访问 download 下载指定目录
+            # localtion /download/{
+            #   # ... 配置
+            #   autoindex on; # 开启目录浏览下载功能 默认off on|off
+            #   
+            #   autoindex_exact_size off; # 指定文件大小显示为M默认是b  默认值on  on|off
+            # 
+            #   autoindex_localtime on;  # 开启以服务器本地时区显示文件修改日期  默认为 off，以 GMT 时间作为显示的文件时间；  on|off
+            # 
+            #   alias /home/test/; # 指定文件路径
+            # }
+
+            error_page   500 502 503 504  /50x.html; # 定义错误页面
+            location = /50x.html {
+              root   html;
+            }
+          }
+        }
+      </code>
+    </pre>
+  </body>
+</html>

@@ -11,5 +11,400 @@
 <body>
   <h1>前端 nginx 配置 与部署配置基础概念</h1>
   <a href="./start.html">16张图入门nginx</a>
+  <h3>前端nginx部署配置</h3>
+  <div>查找nginx的位置</div>
+  <pre>
+    <code class="language-shell-session">
+      whiereis nginx
+    </code>
+  </pre>
+  <div>nginx 启动、停止、重启</div>
+  <pre>
+    <code class="language-shell-session">
+      # 启动 （选择一个执行即可）
+      nginx # nginx直接启动 需要/etc/sbin下有nginx 软连接或者硬连接
+      systemctl start nginx.service # systemctl命令启动 使用Linux 的命令进行启动，这种方法无论是启动什么服务都是一样的，只是更改了服务的名字
+
+      # nginx 运行状态
+      ps aux | grep nginx
+
+      # 停止 （选择一个执行即可）
+      nginx -s stop # 强制停止方法，无论是否在工作
+      nginx -s quit # 从容停止服务 这种方法需要进程完成当前工作后再停止
+      killall nginx # 停止服务
+      systemctl stop nginx.service
+
+      # 重启 （选择一个执行即可）
+      nginx -s reload
+      systemctl restart nginx.service
+
+      # 查看端口号
+      netstat -tlnp
+
+      # 测试配置
+      nginx -t
+    </code>
+  </pre>
+  <div>nginx 配置文件</div>
+  <pre>
+    <code class="language-nginx">
+      user  nginx; # 运行用户，默认是nginx,可以不进行设置
+      worker_processes  1; # nginx 进程，一般设置为和CPU核数一样 或者两倍
+      error_log  /var/log/nginx/error.log warn; # 错误日志存放目录
+      pid        /var/run/nginx.pid; # 进程 pid 存放位置
+
+      events {
+          ...
+      }
+
+
+      http {
+          ...
+          # include /etc/nginx/conf.d/*.conf; # 包含的子配置项位置和文件
+          server {
+            ...
+            location / {
+                ...
+            }
+        }
+      }
+    </code>
+  </pre>
+  <div>event</div>
+  <pre>
+    <code class="language-nginx">
+      events {
+          worker_connections  1024; # 单个后台进程的最大并发数
+      }
+    </code>
+  </pre>
+  <div>http</div>
+  <pre>
+    <code class="language-nginx">
+      http {
+        include       /etc/nginx/mime.types; # 文件扩展名与类型映射表
+        default_type  application/octet-stream; # 默认文件类型
+        # 设置日志模式
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main; # nginx 访问日志存放位置
+
+        sendfile        on; # 开启高效传输模式
+        # tcp_nopush     on; # 减少网络报文段的数量
+
+        keepalive_timeout  65; # 保持连接的时间，也叫做超时连接
+
+        # gzip  on; # 开始 gzip压缩
+
+        # include /etc/nginx/conf.d/*.conf; # 包含的子配置项位置和文件
+        server {
+          ...
+        }
+    }
+    </code>
+  </pre>
+  <div>server</div>
+  <pre>
+    <code class="language-nginx">
+        server {
+          # 当nginx接到请求后，会匹配其配置中的service模块
+          # 匹配方法就是将请求携带的host和port去跟配置中的server_name和listen相匹配
+          listen       80; # 配置监听端口
+          server_name  localhost; # 配置域名
+      
+          # charset koi8-r;
+          # access_log  /var/log/nginx/host.access.log  main;
+      
+          location / {
+              # root   html; # Nginx默认值
+              root   /usr/share/nginx/html; # 服务默认启动目录（可修改为自己的项目根目录）
+              # 设定Nginx服务器返回的文档名
+              index  index.html index.htm; # 默认访问文件 先找根目录下的index.html，如果没有再找index.htm
+
+              # 有时候我们的服务器只允许特定主机访问，比如内部OA系统，或者应用的管理后台系统，更或者是某些应用接口，
+              # 这时候我们就需要控制一些IP访问，我们可以直接在location里进行配置。
+              # deny   123.9.51.42; # 限制访问 拒绝访问
+              # allow  45.76.202.231; # 允许访问
+          }
+
+          # 上面的配置，表示只允许 45.76.202.231访问，禁止ip地址访问。而如果将 deny语句提前，则会发现所有的ip都不可以访问了。
+          # 这说明了：在同一个块中的两个权限指令，先出现的设置为覆盖后出现的设置
+          # location / {
+          #   allow  45.76.202.231;
+          #   deny   all;
+          # }
+
+          # 动静分离配置
+          # 静态化配置，所有静态请求都转发给 nginx 处理，存放目录为 my-project
+          # location ~ .*\.(html|htm|gif|jpg|jpeg|bmp|png|ico|js|css)$ {
+          #     root /usr/local/var/www/my-project; # 静态请求所代理到的根目录
+          # }
+          # 动态请求匹配到path为'node'的就转发到8002端口处理
+          # location /node/ {  
+          #     proxy_pass http://localhost:8002; # 充当服务代理 反向代理配置，请求会被转发到8002端口
+          # }
+      
+          # error_page  404              /404.html; # 配置404页面
+          # 处理错误的时候，不仅可以只使用本服务器的资源，还可以使用外部的资源。比如我们将配置文件设置成这样。
+          # error_page 404 http://laibh.top
+          
+          # error_page指令用于自定义错误页面，500，502，503，504 这些就是HTTP中最常见的错误码，
+          # /50.html用于表示当发生上述指定的任意一个错误的时候，都是用网站根目录下的/50.html文件进行处理。
+          # redirect server error pages to the static page /50x.html
+          # 
+          error_page   500 502 503 504  /50x.html; # 错误状态码的显示页面，配置后需要重新启动
+          location = /50x.html {
+              root   /usr/share/nginx/html;
+          }
+      
+          # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+          # 
+          # location ~ \.php$ {
+          #    proxy_pass   http://127.0.0.1;
+          # }
+      
+          # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+          # 
+          # location ~ \.php$ {
+          #    root           html;
+          #    fastcgi_pass   127.0.0.1:9000;
+          #    fastcgi_index  index.php;
+          #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+          #    include        fastcgi_params;
+          # }
+      
+          # deny access to .htaccess files, if Apache's document root
+          # concurs with nginx's one
+          # 
+          # location ~ /\.ht {
+          #    deny  all;
+          # }
+        }
+    </code>
+  </pre>
+  <div>负载均衡配置</div>
+  <pre>
+    <code class="language-nginx">
+      # 负载均衡：设置domain
+      upstream domain {
+          server localhost:8000;
+          server localhost:8001;
+      }
+      server {  
+        listen       8080;        
+        server_name  localhost;
+
+        location / {
+            # root   html; # Nginx默认值
+            # index  index.html index.htm;
+            
+            proxy_pass http://domain; # 负载均衡配置，请求会被平均分配到8000和8001端口
+            proxy_set_header Host $host:$server_port;
+        }
+      }
+    </code>
+  </pre>
+  <h3>Nginx设置虚拟主机</h3>
+  <ul>
+    <li>虚拟主机是指在一台物理主机服务器上划分出多个磁盘空间，每个磁盘空间都是一个虚拟主机，每台虚拟主机都可以对外提供Web服务，并且互不干扰。在外界看来，虚拟铸就是一台独立的服务器主机，这意味着用户能够利用虚拟主机把多个不同域名的网站部署在同一台服务器上，即解决了维护服务器技术的难题，同时有节省了服务器硬件成本和相关的维护费用。配置虚拟主机可以基于端口号、基于IP和基于域名。</li>
+  </ul>
+  <h5>基于端口号配置虚拟主机</h5>
+  <ul>
+    <li>基于端口号来配置虚拟主机，是Nginx 中最简单的一种方式，原理就是Nginx监听多个端口，根据不同的端口号，来区分不同的网站。</li>
+    <li>
+      首先，我们先进入主文件 etc/nginx/conf.d/default.conf,编辑器打开。可以选择新建一个文件，在文件夹 conf.d下面就可以，也可以还是配置在原来的子文件里。vim 8001.conf 新建一个文件，命名为 8001.conf, 按i键后进入编辑模式，新增配置文件的server选项。
+      <pre>
+        <code class="language-nginx">
+          server{
+              listen 8001; # 监听的端口号
+              server_name localhost; # 访问本机
+              root /usr/share/nginx/html/html8001; # 文件路径
+              index index.html;
+          }
+        </code>
+      </pre>
+    </li>
+  </ul>
+  <h5>基于IP配置虚拟主机</h5>
+  <ul>
+    <li>前提：服务器有多个ip</li>
+    <li>基于ip和基于端口的配置几乎是一样的，只是把 server_name选项，配置成IP就可以了。</li>
+    <li>
+      按照上面的配置可以修改为：
+      <pre>
+        <code class="language-nginx">
+          server{
+            listen 8001; # 监听的端口号
+            server_name 147.124.12.32; 
+            root /usr/share/nginx/html/html8001; # 文件路径
+            index index.html;
+          }
+        </code>
+      </pre>
+      由于我这个服务器也没有多个ip,所以也无法进行实践。
+    </li>
+  </ul>
+  <h5>使用域名设置虚拟主机</h5>
+  <ul>
+    <li>这个主要在于域名解析这块，首先你需要购买一个域名，接着在购买处的后台管理设置域名解析，解析到你的服务器ip跟ip地址8001端口的位置。</li>
+    <li>
+      <pre>
+        <code class="language-nginx">
+          server{
+            listen 80; # 监听的端口号
+            server_name 域名1; 
+          }
+
+          server{
+            listen 8001; # 监听的端口号
+            server_name 域名2; 
+            root /usr/share/nginx/html/html8001; # 文件路径
+            index index.html;
+          }
+        </code>
+      </pre>
+      配置好了之后，就进行重启，然后在浏览器输入你的两个域名，就可以访问这两个网页了。
+    </li>
+  </ul>
+  <h3>Nginx反向代理的设置</h3>
+  <h5>最简单的反向代理</h5>
+  <pre>
+    <code class="language-nginx">
+      server{
+        listen 80; # 监听的端口号
+        server_name 域名1; 
+        location / {
+            proxy_pass 域名2；
+        }
+      }
+    </code>
+  </pre>
+  <div>一般我们反向代理的都是一个ip，但是代理域名也是可以的。</div>
+  <h5>其他反向代理指令</h5>
+  <ul>
+    <li>proxy_set_header:在将客户端请求发送给后端服务器之前，更改来自客户端的请求头信息</li>
+    <li>proxy_connect_timeout:配置Nginx 与后端代理服务器尝试建立连接的超时时间</li>
+    <li>proxy_read_timeout:配置Nginx 向后端务器组发出read请求后，等待相应的超时时间</li>
+    <li>proxy_send_timeout:配置Nginx 向后端务器组发出write请求后，等待相应的超时时间</li>
+    <li>proxy_redirect:用于修改后端服务器返回的响应头中的Location和Refresh</li>
+  </ul>
+  <h3>Nginx适配PC或移动设备</h3>
+  <div>通过配置Nginx来识别移动端和pc端来展示不同的页面。</div>
+  <h5>$http_user_agent的使用</h5>
+  <ul>
+    <li>
+      Nginx通过内置变量 $http_user_agent，可以获取到请求客户端的 userAgent ，就可以判断用户目前处于移动端还是pc端，进而展示不同的页面给用户。
+    </li>
+    <li>
+      首先，先在 /usr/share/nginx目录下新建两个文件夹，分别是pc和mobile项目
+    </li>
+    <li>
+      <pre>
+        <code class="language-nginx">
+          server{
+            listen 8001;
+            server_name localhost;
+            location / {
+             root /usr/share/nginx/pc;
+             if ($http_user_agent ~* '(Android|webOS|iPhone|iPod|BlackBerry)') {
+                root /usr/share/nginx/mobile;
+             }
+             index index.html;
+            }
+          }
+        </code>
+      </pre>
+      这里要注意 if 与后面的括号要有至少一个空格的距离，如果紧贴的话会报错。
+    </li>
+  </ul>
+  <h3>Nginx的Gzip压缩配置</h3>
+  <ul>
+    <li>Gzip是网页的一种网页压缩技术，经过gzip压缩后，页面大小可以变为原来的30%甚至更小。更小的网页会让用户浏览的体验更好，速度更快。gzip网页压缩的实现需要浏览器和服务器的支持。</li>
+    <li>当浏览器支持gzip压缩时，会在请求消息中包含 Accept-Encoding:gzip，这样Nginx就会向浏览器发送经过gzip压缩的内容，同时在相应的信息头加入 Content-Encoding:gzip,声明这是gzip后的内容，浏览器需要先解压才可以解析解出。</li>
+  </ul>
+  <h5>gzip的配置项</h5>
+  <ul>
+    <li>gzip:该指令用于开启或者关闭gzip指令</li>
+    <li>gzip_static:Nginx对于静态文件的处理模块,该模块可以读取预先压缩的gz文件，这样可以减少每次请求进行gzip压缩的CPU资源消耗,on|off</li>
+    <li>gzip_buffers:设置系统获取几个单位的缓存用于存储gzip的压缩结果数据流</li>
+    <li>gzip_comp_level:gzip压缩比，压缩级别是1-9,1的级别最低，9的压缩级别最高。压缩时间也随着增长</li>
+    <li>gzip_disable:可以通过该指令对一些特定的 User-Agent不使用压缩功能。</li>
+    <li>gzip_min_length:设置运行压缩的页面最小字数，页面字节数从相应消息头 Content-length 中进行获取</li>
+    <li>gzip_http_version:识别HTTP协议版本，1.1或1.0</li>
+    <li>gzip_proxied:用于设置启动或禁用从代理服务器上收到相应内容gzip压缩 </li>
+    <li>gzip_vary:用于在响应消息头中添加 Vary:Accept-Encoding，是代理服务器根据请求头中的 Accept-Encoding 识别是否启动 gzip压缩。</li>
+  </ul>
+  <h5>gzip简单配置</h5>
+  <pre>
+    <code class="language-nginx">
+      http {
+        .....
+         gzip on;
+         gzip_types text/plain application/javascript text/css;
+        .....
+     }
+    </code>
+  </pre>
+  <h3>Nginx的location、root、alias指令用法和区别</h3>
+  <h6>nginx指定文件路径有两种方式root和alias，指令的使用方法和作用域：</h6>
+  <ul>
+    <li>root
+      <ul>
+        <li>语法：root path</li>
+        <li>默认值：root html</li>
+        <li>配置段：http、server、location、if</li>
+      </ul>
+    </li>
+    <li>
+      alias
+      <ul>
+        <li>语法：alias path</li>
+        <li>配置段：location</li>
+      </ul>
+    </li>
+    <li>root与alias主要区别在于nginx如何解释location后面的uri，这会使两者分别以不同的方式将请求映射到服务器文件上。
+      <ul>
+        <li>root的处理结果是：root路径＋location路径</li>
+        <li>alias的处理结果是：使用alias路径替换location路径</li>
+        <li>alias是一个目录别名的定义，root则是最上层目录的定义。</li>
+        <li>还有一个重要的区别是alias后面必须要用“/”结束，否则会找不到文件的。。。而root则可有可无~~
+        </li>
+        <li>
+          root实例：
+          <pre>
+            <code class="language-nginx">
+              location ^~ /t/ {
+                root /www/root/html/;
+              }
+            </code>
+          </pre>
+          如果一个请求的URI是/t/a.html时，web服务器将会返回服务器上的/www/root/html/t/a.html的文件。
+        </li>
+        <li>
+          alias实例：
+          <pre>
+            <code class="language-nginx">
+              location ^~ /t/ {
+                alias /www/root/html/new_t/;
+              }
+            </code>
+          </pre>
+          如果一个请求的URI是/t/a.html时，web服务器将会返回服务器上的/www/root/html/new_t/a.html的文件。注意这里是new_t，因为alias会把location后面配置的路径丢弃掉，把当前匹配到的目录指向到指定的目录。
+        </li>
+      </ul>
+    </li>
+    <li>
+      注意：
+      <ul>
+        <li>使用alias时，目录名后面一定要加"/"。</li>
+        <li>alias在使用正则匹配时，必须捕捉要匹配的内容并在指定的内容处使用。</li>
+        <li>alias只能位于location块中。（root可以不放在location中）</li>
+      </ul>
+    </li>
+  </ul>
+  <a href="./cache.html"><h3>nginx 缓存</h3></a>
+  <a href="./conf.html"><h3>nginx 常用配置</h3></a>
 </body>
 </html>

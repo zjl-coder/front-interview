@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="https://my-cdns.github.io/cdn/assets/prism.css" />
+    <script src="https://my-cdns.github.io/cdn/assets/prism.js"></script>
+  </head>
+  <body>
+    <h1>nginx缓存配置</h1>
+    <h3>概述</h3>
+    <ul>
+      缓存对于Web至关重要，尤其对于大型高负载Web站点。Nginx缓存可作为性能优化的一个重要手段，可以极大减轻后端服务器的负载。通常对于静态资源，即较少经常更新的资源，如图片，css或js等进行缓存，从而在每次刷新浏览器的时候，不用重新请求，而是从缓存里面读取，这样就可以减轻服务器的压力。
+    </ul>
+    <h3>Cache的3属性</h3>
+    <ul>
+      <li>
+        <strong style="color: brown">Cache-Control:</strong> 设置相对过期时间,
+        max-age指明以秒为单位的缓存时间. 若对静态资源只缓存一次, 可以设置max-age的值为315360000000
+        (一万年).
+      </li>
+      <li>
+        <strong style="color: brown">Expires:</strong>
+        <ul>
+          <li>语法： expires [time|epoch|max|off</li>
+          <li>默认值： expires off</li>
+          <li>
+            作用：使用本指令可以控制HTTP应答中的“Expires”和“Cache-Control”的头标,（起到控制页面缓存的作用）。设置以分钟为单位的绝对过期时间,
+            优先级比Cache-Control低, 同时设置Expires和Cache-Control则后者生效.
+          </li>
+          <li>可配置段：http, server, location</li>
+          <li>
+            <ul>
+              <li>epoch: 指定“Expires”的值为 1 January, 1970, 00:00:01 GMT。</li>
+              <li>
+                max: 指定“Expires”的值为 31 December 2037 23:59:59 GMT，“Cache-Control”的值为10年。
+              </li>
+              可以在time值中使用正数或负数。“Expires”头标的值将通过当前系统时间加上您设定的 time
+              值来获得。
+              <li>-1: 指定“Expires”的值为 服务器当前时间 -1s,即永远过期.</li>
+              <li>1: 指定“Expires”的值为 服务器当前时间 +1s,即1s后过期.</li>
+              <li>off: 表示不修改“Expires”和“Cache-Control”的值;</li>
+            </ul>
+          </li>
+          <li>
+            <pre>
+              <code class="language-nginx">
+                # 控制媒体资源缓存的过期时间
+                location ~ \.(gif|jpg|jpeg|png|bmp|ico|wma|wmv|asf|mp3|mmf|zip|rar|swf|flv)$ {
+                  root /var/www/img/;
+                  expires 30d;
+                }
+              </code>
+            </pre>
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong style="color: brown">Last-Modified:</strong> 该资源的最后修改时间,
+        在浏览器下一次请求资源时, 浏览器将先发送一个请求到服务器上,
+        并附上If-Unmodified-Since头来说明浏览器所缓存资源的最后修改时间, 如果服务器发现没有修改,
+        则直接返回304(Not Modified)回应信息给浏览器(内容很少), 如果服务器对比时间发现修改了,
+        则照常返回所请求的资源.
+      </li>
+    </ul>
+    <h3>需要注意:</h3>
+    <ul>
+      <li>
+        Last-Modified属性通常和Expires或Cache-Control属性配合使用, 因为即使浏览器设置缓存,
+        当用户点击”刷新”按钮时, 浏览器会忽略缓存继续向服务器发送请求,
+        这时Last-Modified将能够很好的减小回应开销.
+      </li>
+      <li>
+        <strong style="color: brown">ETag</strong> 将返回给浏览器一个资源ID,
+        如果有了新版本则正常发送并附上新ID, 否则返回304， 但是在服务器集群情况下,
+        每个服务器将返回不同的ID, 因此不建议使用ETag.
+      </li>
+    </ul>
+    <h3>200 304 状态说明</h3>
+    <ul>
+      <li>
+        Last-Modified
+        <ul>
+          <li>
+            在浏览器第一次请求某一个URL时，服务器端的返回状态会是200，内容是你请求的资源，同时有一个Last-Modified的属性标记(HttpReponse
+            Header)此文件在服务期端最后被修改的时间，格式类似这样:<br />
+            <span style="color: cornflowerblue">Last-Modified:Tue, 24 Feb 2019 08:01:04 GMT</span>
+          </li>
+          <li>
+            客户端第二次请求此URL时，根据HTTP协议的规定，浏览器会向服务器传送If-Modified-Since报头(HttpRequest
+            Header)，询问该时间之后文件是否有被修改过:
+            <br />
+            <span style="color: cornflowerblue"
+              >If-Modified-Since:Tue, 24 Feb 2019 08:01:04 GMT</span
+            >
+          </li>
+          <li>
+            如果服务器端的资源没有变化，则自动返回HTTP304（NotChanged.）状态码，内容为空，这样就节省了传输数据量。当服务器端代码发生改变或者重启服务器时，则重新发出资源，返回和第一次请求时类似。从而保证不向客户端重复发出资源，也保证当服务器有变化时，客户端能够得到最新的资源。
+          </li>
+          <li>
+            注意：如果If-Modified-Since的时间比服务器当前时间(当前的请求时间request_time)还晚，会认为是个非法请求
+          </li>
+        </ul>
+      </li>
+      <li>
+        Etag工作原理
+        <ul>
+          <li>
+            HTTP协议规格说明定义ETag为“被请求变量的实体标记”（参见14.19）。简单点即服务器响应时给请求URL标记，并在HTTP响应头中将其传送到客户端，类似服务器端返回的格式:
+            <br />
+            <span style="color: cornflowerblue">Etag:“5d8c72a5edda8d6a:3239″</span>
+          </li>
+          <li>
+            客户端的查询更新格式是这样的:<br />
+            <span style="color: cornflowerblue">If-None-Match:“5d8c72a5edda8d6a:3239″</span>
+          </li>
+          <li>
+            如果ETag没改变，则返回状态304。即: 在客户端发出请求后，HttpReponse
+            Header中包含Etag:“5d8c72a5edda8d6a:3239″
+          </li>
+          <li>
+            标识，等于告诉Client端，你拿到的这个的资源有表示ID：5d8c72a5edda8d6a:3239。当下次需要发Request索要同一个URI的时候，浏览器同时发出一个If-None-Match报头(Http
+            RequestHeader)此时包头中信息包含上次访问得到的Etag:“5d8c72a5edda8d6a:3239″标识。
+            <br /><span style="color: cornflowerblue">If-None-Match:“5d8c72a5edda8d6a:3239“</span>
+          </li>
+        </ul>
+      </li>
+      <li>
+        Expires
+        <ul>
+          <li>
+            给出的日期/时间后，被响应认为是过时。如 Expires:Thu, 02 Apr 2009 05:14:08
+            GMT需和Last-Modified结合使用。
+          </li>
+          <li>
+            用于控制请求文件的有效时间，当请求数据在有效期内时客户端浏览器从缓存请求数据而不是服务器端.当缓存中数据失效或过期，才决定从服务器更新数据。
+          </li>
+        </ul>
+      </li>
+      <li>
+        Last-Modified和Expires
+        <ul>
+          <li>
+            Last-Modified标识能够节省一点带宽，但是还是逃不掉发一个HTTP请求出去，而且要和Expires一起用。而Expires标识却使得浏览器干脆连HTTP请求都不用发，比如当用户F5或者点击Refresh按钮的时候就算对于有Expires的URI，一样也会发一个HTTP请求出去，所以，Last-Modified还是要用的，而且要和Expires一起用。
+          </li>
+        </ul>
+      </li>
+      <li>
+        Etag和Expires
+        <ul>
+          <li>
+            如果服务器端同时设置了Etag和Expires时，Etag原理同样，即与 Last-Modified/Etag 对应的
+            HttpRequestHeader:If-Modified-Since 和
+            If-None-Match。我们可以看到这两个Header的值和WebServer发出的Last-Modified,Etag值完全一样；在完全匹配If-Modified-Since和If-None-Match即检查完修改时间和Etag之后，服务器才能返回304.
+          </li>
+        </ul>
+      </li>
+      <li>
+        Last-Modified和Etag
+        <ul>
+          <li>
+            分布式系统里多台机器间文件的last-modified必须保持一致，以免负载均衡到不同机器导致比对失败.
+            <strong style="color: crimson;">分布式系统尽量关闭掉Etag</strong> (每台机器生成的etag都会不一样)
+          </li>
+          <li>
+            Last-Modified和ETags请求的http报头一起使用，服务器首先产生Last-Modified/Etag标记，服务器可在稍后使用它来判断页面是否已经被修改，来决定文件是否继续缓存
+          </li>
+        </ul>
+      </li>
+      <li>Cache-Control: max-age=秒 和 Expires
+        <ul>
+          <li>Expires = 时间，HTTP 1.0 版本，缓存的载止时间，允许客户端在这个时间之前不去检查（发请求）</li>
+          <li>max-age = 秒，HTTP 1.1版本，资源在本地缓存多少秒。</li>
+          <li>如果max-age和Expires同时存在，则被Cache-Control的max-age覆盖。</li>
+          <li>Expires 的一个缺点: 就是返回的到期时间是服务器端的时间，这样存在一个问题，如果客户端的时间与服务器的时间相差很大，那么误差就很大，所以在HTTP 1.1版开始，使用Cache-Control: max-age=秒替代。</li>
+          <li>Expires =max-age + “每次下载时的当前的request时间”</li>
+          <li>所以一旦重新下载的页面后，expires就重新计算一次，但last-modified不会变化.</li>
+        </ul>
+      </li>
+      <li>
+        基于nginx配置使用总结
+        <ul>
+          <li>关闭etag</li>
+          <li>配置last-modified(默认开启)和expires</li>
+        </ul>
+      </li>
+    </ul>
+    <h3>Nginx设置缓存有两种方式：</h3>
+    <ul>
+      <li>proxy_cache_path和proxy_cache</li>
+      <li>Cache-Control和Pragma</li>
+      对于站点中不经常修改的静态内容（如图片，JS，CSS），可以在服务器中设置expires过期时间，控制浏览器缓存，达到有效减小带宽流量，降低服务器压力的目的。
+    </ul>
+    <h3>缓存机制</h3>
+    <ul>
+      <li>浏览器无缓存</li>
+      浏览器请求 ---> 无缓存 ---> 请求WEB服务器 ---> 请求响应 ---> 呈现
+      <li>浏览器有缓存</li>
+      浏览器请求 ---> 有缓存 ---> 校验过期 ---> 是否有更新 ---> 呈现
+      <li>校验是否过期</li>
+      <div>Expires HTTP1.0, Cache-Control(max-age) HTTP1.1</div>
+      <div>协议中Etag头信息校验 Etag ()</div>
+      <div>Last-Modified头信息校验 Last-Modified (具体时间)</div>
+    </ul>
+    <h3>nginx 缓存类型</h3>
+    <ul>
+      <li>
+        <div>服务器缓存</div>
+        <img src="./assets/17.png" alt="" />
+      </li>
+      <li>
+        <div>代理缓存</div>
+        <img src="./assets/20.png" alt="" />
+      </li>
+      <li>
+        <div>客户端缓存</div>
+        <img src="./assets/18.png" alt="" />
+      </li>
+    </ul>
+    <h5>nginx 代理缓原理</h5>
+    <img src="./assets/19.png" alt="" />
+    <ul>
+      第一步：客户端第一次向Nginx请求数据A；
+      <br />
+      第二步：当Nginx发现缓存中没有数据A时，会向服务端请求数据A；<br />
+      第三步：服务端接收到Nginx发来的请求，则返回数据A到Nginx，并且缓存在Nginx；<br />
+      第四步：Nginx返回数据A给客户端应用；<br />
+      第五步：客户端第二次向Nginx请求数据A；<br />
+      第六步：当Nginx发现缓存中存在数据A时，则不会请求服务端；<br />
+      第七步：Nginx把缓存中的数据A返回给客户端应用。<br />
+    </ul>
+    <h3>缓存内容</h3>
+    <ul>
+      网页缓存是由HTTP消息头中的"Cache-control"来控制的，常见的取值有private、no-cache、max-age、must-revalidate等，默认为private。
+      <table border="1" cellspacing="0">
+        <thead>
+          <tr>
+            <th>Cache-directive(指令)</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="2" style="color: brown">可缓存性</td>
+          </tr>
+          <tr>
+            <td>public</td>
+            <td>所有内容都将被缓存（客户端和代理服务器都可缓存）。</td>
+          </tr>
+          <tr>
+            <td>private</td>
+            <td>内容只缓存到私有缓存中（仅客户端可以缓存，代理服务器不可缓存）。</td>
+          </tr>
+          <tr>
+            <td>no-cache</td>
+            <td>
+              必须先与服务器确认返回的响应是否被更改，然后才能使用该响应来满足后续对同一个网址的请求。因此，如果存在合适的验证停牌（ETag），no-cache会发起往返通信来验证缓存的响应，如果资源未被更改，可以避免下载。
+            </td>
+          </tr>
+          <tr>
+            <td>only-if-cached</td>
+            <td>表明客户端只接受已缓存的响应，并且不要向原始服务器检查是否有更新的拷贝.</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="color: brown">到期</td>
+          </tr>
+          <tr>
+            <td>max-age=xxx(xxx is numeric）</td>
+            <td>
+              add_header Cache-Control max-age=no-cache;<br />
+              add_header Cache-Control max-age=360000;<br />
+              缓存的内容将在xxx秒失效，这个选项只在HTTP
+              1.1可用，并如果和Last-Modified一起使用时，优先级较高。
+            </td>
+          </tr>
+          <tr>
+            <td>s-maxage=(xxx seconds)</td>
+            <td>
+              盖max-age 或者 Expires
+              头，但是仅适用于共享缓存(比如各个代理)，并且私有缓存中它被忽略。也就是说s-maxage只用于共享缓存，比如CDN缓存（s
+              -> share）。与max-age 的区别是：
+              max-age用于普通缓存，而s-maxage用于代理缓存。如果存在s-maxage,则会覆盖max-age 和
+              Expires.
+            </td>
+          </tr>
+          <tr>
+            <td>min-fresh</td>
+            <td>指示客户机可以接收响应时间小于当前时间加上指定时间的响应。</td>
+          </tr>
+          <tr>
+            <td>max-stale</td>
+            <td>
+              指示客户机可以接收超出超时期间的响应消息。如果指定max-stale消息的值，那么客户机可以接收超出超时期指定值之内的响应消息。
+            </td>
+          </tr>
+          <tr>
+            <td>stale-while-revalidate=(seconds)</td>
+            <td>
+              表明客户端愿意接受陈旧的响应，同时在后台异步检查新的响应。秒值指示客户愿意接受陈旧响应的时间长度。
+            </td>
+          </tr>
+          <tr>
+            <td>stale-if-error=(seconds)</td>
+            <td>
+              表示如果新的检查失败，则客户愿意接受陈旧的响应。秒数值表示客户在初始到期后愿意接受陈旧响应的时间。
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="color: brown">重新验证和重新加载</td>
+          </tr>
+          <tr>
+            <td>must-revalidate</td>
+            <td>
+              缓存必须在使用之前验证旧资源的状态，并且不可使用过期资源。表示如果页面过期，则去服务器进行获取。
+            </td>
+          </tr>
+          <tr>
+            <td>proxy-revalidate</td>
+            <td>与must-revalidate作用相同，但它仅适用于共享缓存（例如代理），并被私有缓存忽略。</td>
+          </tr>
+          <tr>
+            <td>immutable</td>
+            <td>
+              表示响应正文不会随时间而改变。资源（如果未过期）在服务器上不发生改变，因此客户端不应发送重新验证请求头（例如If-None-Match或If-Modified-Since）来检查更新，即使用户显式地刷新页面。在Firefox中，immutable只能被用在
+              https:// transactions.
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="color: brown">其他</td>
+          </tr>
+          <tr>
+            <td>no-store</td>
+            <td>所有内容都不会被缓存到缓存或Internet临时文件中，强制缓存和对比缓存都不会触发。</td>
+          </tr>
+          <tr>
+            <td>no-transform</td>
+            <td>
+              不得对资源进行转换或转变。Content-Encoding, Content-Range,
+              Content-Type等HTTP头不能由代理修改。例如，非透明代理可以对图像格式进行转换，以便节省缓存空间或者减少缓慢链路上的流量。
+              no-transform指令不允许这样做。
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </ul>
+    <h3>缓存规则</h3>
+    <ul>
+      默认情况下，NGINX尊重Cache-Control源服务器的标头。它不缓存响应Cache-Control设置为Private，No-Cache或No-Store或Set-Cookie在响应头。NGINX只缓存GET和HEAD客户端请求。<br />
+      如下配置可覆盖这些默认值：
+      <li>proxy_buffering默认为on，若proxy_buffering设置为off，则NGINX不会缓存响应。</li>
+      <li>proxy_ignore_headers可以配置忽略Cache-Control：</li>
+      <pre>
+        <code class="language-nginx">
+          location /images/ {
+            proxy_cache my_cache;
+            proxy_ignore_headers Cache-Control;
+            proxy_cache_valid any 30m;
+            # ...
+          }
+        </code>
+      </pre>
+    </ul>
+    <h3>扩展</h3>
+    <ul>
+      <li>
+        <strong style="color: brown">HTTP1.0</strong>中通过Pragma 控制页面缓存，通常设置的值为no-
+        cache，不过这个值不这么保险，通常还加上Expires置为0来达到目的。但是如我们刻意需要浏览器或缓存服务器缓存住我们的页面这个值则要设置为
+        Pragma。
+      </li>
+      <li>
+        <strong style="color: brown">HTTP1.1</strong>中启用Cache-Control
+        来控制页面的缓存与否，Cache-Control是http1.1 中的标准，可以看成是 expires 的补充,
+        使用的是相对时间的概念。
+      </li>
+    </ul>
+    <h3>nginx 缓存配置项</h3>
+    <h5>expires配置</h5>
+    <ul>
+      <li>
+        语法
+        <ul>
+          <li>expires [modified] time;</li>
+          <li>expires epoch | max | off;</li>
+        </ul>
+      </li>
+      <li>默认值： expires off; #静态缓存</li>
+      <li>
+        作用：Expires是服务端返回的到期时间。如果下一次请求如果小于服务端返回的过期时间，则直接使用缓存数据。Expires针对HTTP1.0的东西，当前通常浏览器默认都是使用HTTP1.1。而且由于该值是有服务端生成，而客户端的时间和服务端的时间有可能不一致，导致存在一定误差。所以HTTP1.1使用Cache-Control替代。
+      </li>
+      <li>可配置段：http, server, location, if in location</li>
+      <li>
+        参数释义：
+        <ul>
+          <li>
+            max启用后为：Expires: Thu, 31 Dec 2037 23:55:55 GMT Cache-Control: max-age=315360000
+            (10年)；
+          </li>
+          <li>epoch启用后为：Expires: Thu, 01 Jan 1970 00:00:01 GMT Cache-Control: no-cache；</li>
+          <li>
+            time：设定具体时间，可以携带单位（通过@），如：表示一天内的下午3点30分后失效expires
+            @15h@30m；time是负数：表示”Cache-Control: no-cache”；time是正数或零：”Cache-Control:
+            max-age=t”，其中t单位为秒。
+            <pre>
+              <code class="language-nginx">
+                server {
+                  listen       80;
+                  server_name  xxx.xxx.com;
+                  root         /app/xxx/html/;
+                  location ~ .*\.(?:jpg|jpeg|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm)$
+                  {
+                      expires      7d;
+                  }
+              
+                  location ~ .*\.(?:js|css)$
+                  {
+                      expires      7d;
+                  }
+              
+                  location ~ .*\.(?:htm|html)$    #不缓存html
+                  {
+                      add_header Cache-Control "private, no-store, no-cache, must-revalidate, proxy-revalidate";
+                  }
+                }
+              </code>
+            </pre>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <h5>proxy_cache配置</h5>
+    <ul>
+      <li>语法：proxy_cache zone | off;</li>
+      <li>默认：proxy_cache off;</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：设置是否开启对后端响应的缓存，如果开启的话，参数值就是zone的名称。</li>
+      <pre>
+        <code class="language-nginx">
+          proxy_cache mycache;
+        </code>
+      </pre>
+    </ul>
+    <h5>proxy_cache_path配置</h5>
+    <ul>
+      <li>
+        语法：proxy_cache_path path [levels=levels] [use_temp_path=on|off]
+        keys_zone=name:size[inactive=time] [max_size=size] [manager_files=number]
+        [manager_sleep=time] [manager_threshold=time] [loader_files=number] [loader_sleep=time]
+        [loader_threshold=time] [purger=on|off] [purger_files=number] [purger_sleep=time]
+        [purger_threshold=time];
+      </li>
+      <li>默认值：——</li>
+      <li>可配置段：http</li>
+      <li>
+        作用：指定缓存位置、缓存名称、内存中缓存内容元数据信息大小限制、缓存总大小限制。缓存位置是一个目录应该先创建好，nginx并不会帮我们创建这个缓存目录。
+      </li>
+      <li>
+        参数释义：
+        <ul>
+          <li>path：定义缓存文件存放位置；</li>
+          <li>
+            levels：定义缓存路径的目录层级，默认所有缓存文件都放在上面指定的根路径中，最多三级，每层目录长度为1或2字节；
+          </li>
+          <li>
+            keys_zone：name表示共享内存名称，用于在共享内存中定义一块存储区域来存放缓存的 key 和
+            metadata（类似于使用次数），这样 nginx 可以快速判断一个 request
+            是否命中缓存。由proxy_cache指令使用；size表示共享内存大小，1mb大约可以存放8000个key；
+          </li>
+          <li>
+            max_size：设置缓存大小的上限。它是可选的，不指定值允许缓存增长以使用所有可用磁盘空间。当缓存大小达到限制时，称为缓存管理器的进程将删除最近最少用于将缓存大小恢复到限制之下的文件；
+          </li>
+          <li>inactive：在inactive时间内没有被访问的缓存会被淘汰掉，默认是10分钟；</li>
+          <li>
+            use_temp_path：如果为 off，则 nginx 会将缓存文件直接写入指定的 cache 文件中，而不使用
+            temp_path 指定的临时存储路径。
+          </li>
+        </ul>
+      </li>
+      <li>
+        注意：inactive 和 expired 配置项的含义是不同的，expired 只是判断过期时间，不会删除缓存；而
+        inactive 是直接删除过期缓存。
+      </li>
+      <li>
+        配置示例：
+        <pre>
+          <code class="language-nginx">
+            http {
+              ...
+              # 缓存目录：/data/nginx/cache
+              # 缓存名称：one
+              # 缓存占用内存空间：10m
+              # 缓存目录级别为2
+              # 缓存最大时间为60分钟
+              # 加载器每次迭代过程最多执行300毫秒
+              # 加载器每次迭代过程中最多加载200个文件
+              # 缓存硬盘空间最多为 200m
+              # loader_threshold：指定每次加载执行的时间
+              # loader_files：每次最多加载的数量
+              # loader_sleeps：每次加载的延时
+              proxy_cache_path /data/nginx/cache  levels=1:2 keys_zone=one:10m inactive=60m loader_threshold=300 loader_files=200 max_size=200m;
+              server {
+                  listen 8080;
+                  # 使用名称为one的缓存
+                  proxy_cache one;
+                  location / {
+                      # 此location中使用默认的缓存配置
+                      proxy_pass http://backend1;
+                  }
+                  location /some/path {
+                      proxy_pass http://backend2;
+                  # 缓存有效期为1分钟
+                      proxy_cache_valid any 1m;
+                      # 被请求3次以上时才缓存
+                      proxy_cache_min_uses 3;
+                  # 请求中有下面参数值时不走缓存
+                      proxy_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+                  }
+              }
+            }
+          </code>
+        </pre>
+        <ul style="color: brown">
+          提示：在如上缓存工作中有两个附加进程：
+          <li>
+            缓存管理器：定期检查缓存状态，看缓存总量是否超出限制，如果超出，就移除其中最少使用的部分
+          </li>
+          <li>
+            缓存加载器：加载器只在nginx启动后运行一次，把缓存内容的元数据信息加载到内存空间，如果一次性加载全部缓存信息，会大量消耗资源，使nginx在启动后的几分钟里变慢，为避免此问题，有3种加载策略：
+            <ul>
+              <li>loader_threshold：指定每次加载执行的时间</li>
+              <li>loader_files：每次最多加载的数量</li>
+              <li>loader_sleeps：每次加载的延时</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <h5>proxy_cache_valid配置</h5>
+    <ul>
+      <li>语法：proxy_cache_valid [code ...] time;</li>
+      <li>默认值：——</li>
+      <li>可配置段：http, server, location</li>
+      <li>
+        作用：默认情况下，缓存的内容是长期存留的，除非缓存的总量超出限制，此字段可配置不同的响应码缓存不同的时长，即指定缓存的有效期。
+      </li>
+      <li>
+        示例：<br />
+        响应状态码为200 302时，10分钟有效；<br />
+        响应状态码为404时，1分钟有效；<br />
+        <pre>
+          <code class="language-nginx">
+            ...
+            proxy_cache_valid 200 302 10m;
+            proxy_cache_valid 404      1m;
+            ...
+          </code>
+        </pre>
+        对应任何状态码，5分钟有效;
+        <pre>
+          <code class="language-nginx">
+            proxy_cache_valid any 5m;
+          </code>
+        </pre>
+      </li>
+    </ul>
+    <h5>proxy_cache_methods配置</h5>
+    <ul>
+      <li>语法：proxy_cache_methods GET | HEAD | POST ...;</li>
+      <li>默认值：proxy_cache_methods GET HEAD;</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：对哪些方法的请求进行缓存。</li>
+    </ul>
+    <h5>proxy_cache_key string</h5>
+    <ul>
+      <li>语法：proxy_cache_key string;</li>
+      <li>默认值：proxy_cache_key $scheme$proxy_host$request</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：用于设置不同维度进行缓存，即给缓存设定key。如缓存url。</li>
+    </ul>
+    <h5>proxy_cache_min_uses</h5>
+    <ul>
+      <li>语法：proxy_cache_min_uses string;</li>
+      <li>默认值：proxy_cache_min_uses 1;</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：指定请求至少被发送了多少次以上时才缓存，可以防止低频请求被缓存。</li>
+    </ul>
+    <h5>proxy_cache_bypass</h5>
+    <ul>
+      <li>语法：proxy_cache_bypass string;</li>
+      <li>默认值：——</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：指定哪些响应在某些值不为空或不为0的情况下不走缓存。</li>
+      <pre>
+        <code class="language-nginx">
+          proxy_cache_bypass $cookie_nocache $arg_nocache $arg_comment;
+        </code>
+      </pre>
+    </ul>
+    <h5>proxy_no_chache string</h5>
+    <ul>
+      <li>语法：proxy_no_chache string;</li>
+      <li>默认值：——</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：指定定哪些请求不被缓存，即响应来自原始服务器而不是缓存。</li>
+      <li>
+        <pre>
+          <code class="language-nginx">
+            proxy_no_chache $cookie_nocache $arg_nocache $arg_nocache;
+          </code>
+        </pre>
+      </li>
+    </ul>
+    <h5>proxy_cache_use_stale</h5>
+    <ul>
+      <li>语法：proxy_cache_use_stale off | on;</li>
+      <li>默认值：proxy_cache_use_stale off;</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：指定在后端服务器在返回什么状态码的情况下可以使用过期的缓存。</li>
+      <li>
+        <pre>
+          <code class="language-nginx">
+            proxy_cache_use_stale error timeout invalid_header http_500 http_502 http_503 http_504;
+          </code>
+        </pre>
+      </li>
+    </ul>
+    <h5>proxy_cache_lock</h5>
+    <ul>
+      <li>语法：proxy_cache_lock off | on;</li>
+      <li>默认值：proxy_cache_lock off;</li>
+      <li>可配置段：http, server, location</li>
+      <li>
+        作用：默认不开启，开启的话则每次只能有一个请求更新相同的缓存，其他请求要么等待缓存有数据要么限时等待锁释放。通常在多个客户端请求缓存未命中时，只有第一个请求可以发向原服务器，其他请求要等待第一个响应返回或者超时后，使用缓存响应客户端。该参数可以合并回源请求，减轻峰值流量下的压力。
+      </li>
+      <li>
+        <pre>
+          <code class="language-nginx">
+            proxy_cache_lock on;
+          </code>
+        </pre>
+      </li>
+    </ul>
+    <h5>proxy_cache_lock_timeout</h5>
+    <ul>
+      <li>语法：proxy_cache_lock_timeout time;</li>
+      <li>默认值：proxy_cache_lock_timeout 5s;</li>
+      <li>可配置段：http, server, location</li>
+      <li>作用：等待缓存锁超时之后将直接请求后端，结果不会被缓存。</li>
+      <li>
+        <pre>
+          <code class="language-nginx">
+            proxy_cache_lock_timeout 5s;
+          </code>
+        </pre>
+      </li>
+    </ul>
+    <h3>缓存清除</h3>
+    <h5>清除缓存配置</h5>
+    <pre>
+      <code class="language-nginx">
+        location ~ /purge(/.*) {
+          allow       127.0.0.1;
+          allow       192.168.55.0/24;
+          deny        all;
+          proxy_cache_purge cache_one $1$is_args$args;
+        }
+      </code>
+    </pre>
+    <div style="color: brown">
+      注意：使用proxy_cache_purge清除缓存，必须提前安装ngx_cache_purge模块，安装模块必须基于编译安装的Nginx。之后使用url访问即可清除对应缓存，如cache.linuxds.com/purge/nginx.png即可清除cache.linuxds.com/nginx.png此文件的缓存。
+    </div>
+    <h5>脚本清除</h5>
+    <div>清除缓存脚本如下，必须在缓存服务器上执行，</div>
+    <div>[root@nginx01 ~]# vi nginx_cache_clean.sh</div>
+    <pre>
+      <code class="language-shell-session">
+        #!/bin/sh
+        #****************************************************************#
+        # ScriptName: nginx_cache_clean.sh
+        # Author: null
+        # Create Date: 2020-06-24 00:03
+        # Modify Author: xhy
+        # Modify Date: 2020-06-24 00:03
+        # Version:
+        #***************************************************************#
+        echo -e "\n"
+        echo -n -e "\e[35;1m请输入Nginx Proxy_cache缓存的具体路径(提示:可使用Tab补全!)\e[0m\e[34;5m:\e[0m"
+        read -e path
+        CACHE_DIR=$path
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -n -e "\e[32;1m请输入删除操作的类型：\n1.按文件类型删除\t2.按具体文件名删除\t3.按文件目录删除\n:"
+        read action
+            case $action in
+        1)
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -n -e "\e[34;1m 请输入你要删除的缓存文件类型(多个参数可空格隔开)\e[0m\e[34;5m:\e[0m"
+        read -a FILE
+        for i in `echo ${FILE[*]}|sed 's/ /\n/g'`
+        do
+        grep -r -a  \.$i ${CACHE_DIR}| awk 'BEGIN {FS=":"} {print $1}'  > /tmp/cache_list.txt
+        for j in `cat /tmp/cache_list.txt`
+        do
+          rm  -rf  $j
+          echo "$i     $j 删除成功!"
+        done
+        done
+        ;;
+        2)
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -n -e "\e[33;1m 请输入你要删除的缓存文件具体名称(多个参数可空格隔开)\e[0m\e[34;5m:\e[0m"
+        read -a FILE
+        for i in `echo ${FILE[*]}|sed 's/ /\n/g'`
+        do
+        grep -r -a  $i ${CACHE_DIR}| awk 'BEGIN {FS=":"} {print $1}'  > /tmp/cache_list.txt
+        for j in `cat /tmp/cache_list.txt`
+        do
+          rm  -rf  $j
+          echo "$i  $j 删除成功!"
+        done
+        done
+        ;;
+        3)
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -e "\e[32;1m----------------------------------------------------------------\e[0m"
+        echo -n -e "\e[33;1m支持的模式有:\n1.清除网站cache目录下的所有缓存:cache.aa.com/data/cache/\n2.清除网站shop下的所有缓存:cache.aa.com/data/upload/shop\n3.清除网站根目录下的所有缓存:cache.aa.com\e[0m\n"
+        echo -n -e "\e[34;1m 请输入你要删除的缓存文件具体目录\e[0m\e[34;5m:\e[0m"
+        read -a FILE
+        for i in `echo ${FILE[*]}|sed 's/ /\n/g'`
+        do
+        grep -r -a  "$i" ${CACHE_DIR}| awk 'BEGIN {FS=":"} {print $1}'  > /tmp/cache_list.txt
+        for j in `cat /tmp/cache_list.txt`
+        do
+          rm  -rf  $j
+          echo "$i  $j 删除成功!"
+        done
+        done
+        ;;
+        *)
+        echo "输入错误,请重新输入"
+        ;;
+        esac
+      </code>
+    </pre>
+  </body>
+</html>
