@@ -30,8 +30,8 @@
           access_log  /var/log/nginx/access.log  main; # nginx 访问日志存放位置
 
           sendfile        on; # 开启高效传输模式
-          #tcp_nopush     on; # 减少网络报文段的数量
-          #keepalive_timeout  0;
+          # tcp_nopush     on; # 减少网络报文段的数量
+          # keepalive_timeout  0;
           keepalive_timeout  65; # 保持连接的时间，也叫做超时连接
 
           etag off; # 分布式系统关闭掉Etag，每台机器生成的etag都会不一样

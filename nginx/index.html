@@ -93,6 +93,7 @@
 
         sendfile        on; # 开启高效传输模式
         # tcp_nopush     on; # 减少网络报文段的数量
+        # keepalive_timeout  0;
 
         keepalive_timeout  65; # 保持连接的时间，也叫做超时连接
 
@@ -275,7 +276,7 @@
       server{
         listen 80; # 监听的端口号
         server_name 域名1; 
-        location / {
+        location /api {
             proxy_pass 域名2；
         }
       }
@@ -341,8 +342,17 @@
     <code class="language-nginx">
       http {
         .....
-         gzip on;
-         gzip_types text/plain application/javascript text/css;
+        ### gzip 配置
+        # 开启gzip
+        gzip on;
+        # 启用gzip压缩的最小文件；小于设置值的文件将不会被压缩
+        gzip_min_length 1k;
+        # gzip 压缩级别 1-10
+        gzip_comp_level 2;
+        # 进行压缩的文件类型。
+        gzip_types text/plain application/javascript application/x-javascript text/css application/xml text/javascript application/x-httpd-php image/jpeg image/gif image/png;
+        # 是否在http header中添加Vary: Accept-Encoding，建议开启
+        gzip_vary on;
         .....
      }
     </code>
