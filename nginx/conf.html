@@ -41,6 +41,9 @@
           # 如果我们要添加缓存功能的话，需要创建一个用于存放缓存文件的文件夹。比如我们这里使用 /data/nuget-cache。
           proxy_cache_path  /data/nuget-cache levels=1:2 keys_zone=nuget-cache:20m max_size=50g inactive=168h;
           
+          ## nginx安全
+          server_tokens off; # 隐藏nginx版本号
+
           ### gzip 配置
           # 开启gzip
           gzip on;
@@ -64,6 +67,7 @@
             server_name  xxx.abc.com; # localhost ip 域名 （多个以空格分开）
 
             ### 开启https
+            # ## listen 443; # 开启https 一般监听443端口
             # ssl                  on;
             # ssl_certificate      /daka/program/nginx/conf/server.cer; # pem文件的路径
             # ssl_certificate_key  /daka/program/nginx/conf/server.key; # key文件的路径
