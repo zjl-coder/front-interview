@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="https://my-cdns.github.io/cdn/assets/prism.css" />
+  <script src="https://my-cdns.github.io/cdn/assets/prism.js"></script>
+</head>
+<body>
+  <h1>实现 Lodash.get</h1>
+  <div>对如下对象取值</div>
+  <pre>
+    <code class="language-javascript">
+      const data = {
+        obj: { a: {b: {c: {d: { e: 1 } } } } },
+        arr: [ 'a', 'b', { c: 1, d: [1] } ],
+        fun: () => {}
+      };
+    </code>
+  </pre>
+  <div>
+    js 对象取值 <span style="color: brown;">data.obj.a.b.c.d.e</span> 容易出错 <br/>
+    对属性做验证 a && a.b && a.b.c && a.b.c.d && a.b.c.d.e 容易造成链式过程
+  </div>
+  <h1>解决办法</h1>
+  <h3>1、es2020（即es11，es6 为 es2015）的 可选链操作符 ?.</h3>
+  <ul>
+    <li>注意：可选链 ?. 不是一个运算符，而是一个特殊的语法结构</li>
+    <li>可选链操作符( ?. )允许读取位于连接对象链深处的属性的值，而不必明确验证链中的每个引用是否有效。?. 操作符的功能类似于 . 链式操作符，不同之处在于，在引用为空(nullish ) (null 或者 undefined) 的情况下不会引起错误，该表达式短路返回值是 undefined。与函数调用一起使用时，如果给定的函数不存在，则返回 undefined。</li>
+    <li>
+      空值合并操作符（??）是一个逻辑操作符，当左侧的操作数为 null 或者 undefined 时，返回其右侧操作数，否则返回左侧操作数。
+    </li>
+    <li>
+      与逻辑或操作符（||）不同，逻辑或操作符会在左侧操作数为假值时返回右侧操作数。也就是说，如果使用 || 来为某些变量设置默认值，可能会遇到意料之外的行为。比如为假值（例如，'' 或 0）时。见下面的例子。
+    </li>
+  </ul>
+  <pre>
+    <code class="language-javascript">
+      const foo = null ?? 'default string';
+      console.log(foo);
+      // expected output: "default string"
+
+      const baz = 0 ?? 42;
+      console.log(baz);
+      // expected output: 0
+    </code>
+  </pre>
+  <div>对象取值可以如下</div>
+  <pre>
+    <code class="language-javascript">
+      data?.obj?.a?.b?.c?.d?.e; // 1
+      data?.arr?[0]; // 'a'
+      data?.arr?[2]?.c; // '1'
+      data?.obj?.f; // undefined
+      data?.obj?.f ?? 2; // 2 给定默认值
+      data?.customMethod?.(); // undefined 不存在customMethod方法，不会抛错  TypeError 异常 (x.y is not a function).
+      data?.arr(); // 抛错 如果存在一个属性名且不是函数, 使用 ?. 仍然会产生一个 TypeError 异常 (x.y is not a function).
+      data?.arr?.(); // undefined
+    </code>
+  </pre>
+  <h3>2、lodash get 方法 三种取值传参</h3>
+  <pre>
+    <code class="language-javascript">
+      var object = { 'a': [{ 'b': { 'c': 3 } }] };
+ 
+      _.get(object, 'a[0].b.c');
+      // => 3
+      
+      _.get(object, ['a', '0', 'b', 'c']);
+      // => 3
+      
+      _.get(object, 'a.b.c', 'default');
+      // => 'default'
+
+    </code>
+  </pre>
+  <div>实现</div>
+  <pre>
+    <code class="language-javascript">
+      // 实现一 Native
+      const get = (obj, path, defaultValue = undefined) => {
+        const travel = regexp =>
+          String.prototype.split
+            .call(path, regexp)
+            .filter(Boolean)
+            .reduce((res, key) => (res !== null && res !== undefined ? res[key] : res), obj);
+        const result = travel(/[,[\]]+?/) || travel(/[,[\].]+?/);
+        return result === undefined || result === obj ? defaultValue : result;
+      };
+
+      // 实现二
+      function get (source, path, defaultValue = undefined) {
+        // path 中也可能是数组的路径，全部转化成 . 运算符并组成数组
+        // a[3].b -> a.3.b
+        const paths = path.replace(/\[(\d+)\]/g, '.$1').split('.')
+        let result = source
+        // 然后层层迭代属性即可，另外注意 null 与 undefined 取属性会报错，所以使用 Object 包装一下。
+        for (const p of paths) {
+          result = Object(result)[p]
+          if (result === undefined) {
+            return defaultValue
+          }
+        }
+        return result
+      }
+    </code>
+  </pre>
+</body>
+</html>
