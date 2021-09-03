@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="https://my-cdns.github.io/cdn/assets/prism-all.css" />
+  <script src="https://my-cdns.github.io/cdn/assets/prism-all.js"></script>
+</head>
+<body>
+  <h1>HTTP 无状态</h1>
+  <ul>
+    HTTP 请求方和响应方之间无法维护状态，都是一次性的，它不知道前后的请求都发生了什么。
+  </ul>
+  <ul>
+    案例：有的场景下，我们需要维护状态。最典型的，一个用户登陆微博，发布、关注、评论，都应是在登录后的用户状态下的。
+  </ul>
+  <h3>解决方式</h3>
+  <ul>
+    <li>登陆接口直接返回给前端登录成功的信息，前端想办法存起来</li>
+    <ul>
+      存储方式
+      <li>最差的方式：挂到全局变量上，但这是个「鉴权信息」，一次刷新页面就没了</li>
+      <li>好一点的方式：存到 cookie、localStorage 等里，无论怎么刷新，只要浏览器没清掉或者过期，就一直拿着这个状态。</li>
+    </ul>
+  </ul>
+  <h1>cookie</h1>
+  <h3>无感知方式 · 后端设置cookie</h3>
+  <ul>
+    <li>在提供标记的接口（如登录接口），通过 HTTP 返回头的 Set-Cookie 字段，直接存到到浏览器上</li>
+    <li>浏览器发起请求时，会 <strong style="color: brown;">自动</strong> 把 cookie 通过 HTTP 请求头的 Cookie 字段，带给接口</li>
+  </ul>
+  <h3>「配置：Domain / Path」</h3>
+  <div>限制能够携带cookie 的 url 范围</div>
+  <ul>
+    <li>
+      <strong>Domain</strong>: Domain属性指定浏览器发出 HTTP 请求时，哪些域名要附带这个 Cookie。如果没有指定该属性，浏览器会默认将其设为当前 URL 的一级域名，比如 www.example.com 会设为 example.com，而且以后如果访问example.com的任何子域名，HTTP 请求也会带上这个 Cookie。如果服务器在Set-Cookie字段指定的域名，不属于当前域名，浏览器会拒绝这个 Cookie。
+    </li>
+    <li>
+      <strong>Path</strong>: Path属性指定浏览器发出 HTTP 请求时，哪些路径要附带这个 Cookie。只要浏览器发现，Path属性是 HTTP 请求路径的开头一部分，就会在头信息里面带上这个 Cookie。比如，PATH属性是/，那么请求/docs路径也会包含该 Cookie。当然，前提是域名必须一致。
+    </li>
+  </ul>
+  <h3>「配置：Expires / Max-Age」</h3>
+  <div>限制 cookie 的有效时间</div>
+  <ul>
+    <li><strong>Expires</strong>: Expires属性指定一个具体的到期时间，到了指定时间以后，浏览器就 <strong style="color: brown;">不再保留</strong> 这个 Cookie。它的值是 UTC 格式。如果不设置该属性，或者设为null，Cookie 只在 <strong style="color: brown;">当前会话</strong> （session）有效，浏览器窗口一旦关闭，当前 Session 结束，该 Cookie 就会被删除。</li>
+    <li><strong>Max-Age</strong>: Max-Age属性指定从现在开始 Cookie 存在的秒数，比如60 * 60 * 24 * 365（即一年）。过了这个时间以后，浏览器就不再保留这个 Cookie。如果同时指定了Expires和Max-Age，那么Max-Age的值将 <strong style="color: brown;">优先生效</strong> 。如果Set-Cookie字段没有指定Expires或Max-Age属性，那么这个 Cookie 就是 <strong style="color: brown;">Session Cookie</strong> ，即它只在本次对话存在，一旦用户关闭浏览器，浏览器就不会再保留这个 Cookie。</li>
+    <li><strong style="color: brown;">注意</strong> ：浏览器根据 <strong style="color: brown;">本地时间</strong> (new Date)，决定 Cookie 是否过期，由于本地时间是不精确的，所以没有办法保证 Cookie 一定会在服务器指定的时间过期。</li>
+  </ul>
+  <h3>「配置：Secure / HttpOnly」</h3>
+  <div>cookie 安全</div>
+  <ul>
+    <li><strong>Secure</strong>: Secure属性指定浏览器只有在加密协议 <strong style="color: brown;">HTTPS</strong> 下，才能将这个 Cookie <strong style="color: brown;">发送</strong>到服务器。另一方面，如果当前协议是 HTTP，浏览器会自动忽略服务器发来的Secure属性。该属性只是一个开关，不需要指定值。如果通信是 HTTPS 协议，该开关自动打开。</li>
+    <li><strong>HttpOnly</strong>: HttpOnly属性指定该 Cookie 无法通过 JavaScript 脚本<strong style="color: brown;">拿到</strong>，主要是Document.cookie属性、XMLHttpRequest对象和 Request API 都拿不到该属性。这样就 <strong style="color: brown;">防止</strong> 了该 Cookie 被脚本读到，只有浏览器发出 HTTP 请求时，才会带上该 Cookie。</li>
+  </ul>
+  <h3>后端是如果通过HTTP 头对 cookie 的读写</h3>
+  <div>HTTP 返回的一个 Set-Cookie 头用于向浏览器写入「一条（ <strong style="color: brown;">且只能是一条</strong> ）」cookie，格式为 cookie 键值 + 配置键值。</div>
+  <pre>
+    <code class="language-nginx">
+      Set-Cookie: username=jimu; 
+      domain=jimu.com; 
+      path=/blog; 
+      Expires=Wed, 21 Oct 2015 07:28:00 GMT; 
+      Secure; 
+      HttpOnly; 
+    </code>
+  </pre>
+  <div>一次多 set 几个 cookie 怎么办？多给几个 Set-Cookie 头（一次 HTTP 请求中允许重复）</div>
+  <pre>
+    <code class="language-nginx">
+      Set-Cookie: username=jimu; domain=jimu.com;
+      Set-Cookie: height=180; domain=me.jimu.com;
+      Set-Cookie: weight=80; domain=me.jimu.com;
+    </code>
+  </pre>
+  <div>http请求时cookie会带上 username height weight，但http头不会带上domain，一个是有origin值，另一个是因为后端发送http头时，浏览器已经对域名做了筛选了</div>
+  <h3>cookie 的读写</h3>
+  <div>document.cookie 可以在在前端读写cookie 也可以读和修改非 httpOnly 下的cookie。（HTTPOnly下如果同名cookie键名，不会覆盖后端设置的cookie）</div>
+  <h1>session</h1>
+  <div>应用方案：session 鉴权。</div>
+  <div>典型的 session 登陆/验证流程：</div>
+  <img src="./assets/session登录流程.png" alt="" srcset="" style="max-width: 600px;">
+  <ul>
+    <li>浏览器登录发送账号密码，服务端查用户库，校验用户</li>
+    <li>服务端把用户登录状态存为 Session，生成一个 sessionId</li>
+    <li>通过登录接口返回，把 sessionId set 到 cookie 上</li>
+    <li>此后浏览器再请求业务接口，sessionId 随 cookie 带上</li>
+    <li>服务端查 sessionId 校验 session</li>
+    <li>成功后正常做业务处理，返回结果</li>
+  </ul>
+  <h3>「Session 的存储方式」</h3>
+  <div>服务端只是给 cookie 一个 sessionId，而 session 的具体内容（可能包含 <strong style="color: brown;">用户信息、session 状态</strong> 等），要自己存一下。存储的方式有几种：</div>
+  <ul>
+    <li><strong>Redis（推荐）</strong> ：内存型数据库，redis中文官方网站。以 key-value 的形式存，正合 sessionId-sessionData 的场景；且访问快。</li>
+    <li><strong>内存</strong> ：直接放到变量里。一旦服务重启就没了</li>
+    <li><strong>数据库</strong> ：普通数据库。性能不高。</li>
+  </ul>
+  <h3>Session 的过期和销毁」</h3>
+  <div>只要把存储的 session 数据销毁就可以。</div>
+  <h3>「Session 的分布式问题」</h3>
+  <div>通常服务端是集群，而用户请求过来会走一次负载均衡，不一定打到哪台机器上。那一旦用户后续接口请求到的机器和他登录请求的机器不一致，或者登录请求的机器宕机了，session 不就失效了吗？这个问题现在有几种解决方式。</div>
+  <ul>
+    <li><strong>「存储」角度 （推荐）</strong>，把 session <strong style="color: brown;">集中存储</strong> 。如果我们用独立的 <strong style="color: brown;">Redis</strong> 或普通数据库，就可以把 session 都存到一个库里。</li>
+    <li><strong>「分布」角度</strong>，让相同 IP 的请求在负载均衡时都打到同一台机器上。以 nginx 为例，可以配置 ip_hash 来实现。</li>
+  </ul>
+  <div>通常还是采用第一种方式，因为第二种相当于阉割了负载均衡，且仍没有解决「用户请求的机器宕机」的问题。</div>
+  <h1>token</h1>
+  <div>应用方案：token鉴权</div>
+  <ul>
+    背景：session 的维护给服务端造成很大困扰
+    <li>我们必须找地方存放它</li>
+    <li>又要考虑分布式的问题</li>
+    <li>甚至要单独为了它启用一套 Redis 集群</li>
+  </ul>
+  <div>回过头来想想，一个登录场景，也<strong style="color: brown;">不必</strong>往 session 存太多东西，那为什么不<strong style="color: brown;">直接打包</strong>到 cookie 中呢？这样<strong style="color: brown;">服务端不用存</strong>了，每次 <strong style="color: brown;">只要核验</strong> cookie 带的信息有效性就可以了，也可以携带一些轻量的信息。这种方式通常被叫做 token。</div>
+  <img src="./assets/token登录流程.png" alt="" srcset="" style="max-width: 600px;">
+  <div>token 的流程是这样的：</div>
+  <ul>
+    <li>用户登录，服务端校验账号密码，获得用户信息</li>
+    <li>把用户信息、token 配置编码成 token，通过 cookie set 到浏览器</li>
+    <li>此后用户请求业务接口，通过 cookie 携带 token</li>
+    <li>接口校验 token 有效性，进行正常业务接口处理</li>
+  </ul>
+  <h3>「客户端 token 的存储方式」</h3>
+  <ul>
+    cookie 并不是客户端存储凭证的唯一方式。token 因为它的「无状态性」，有效期、使用限制都包在 token 内容里，对 cookie 的管理能力依赖较小。
+    <li>客户端存起来就显得更自由，可以存在内存，也可以存在文件上，也可以存在cookie上</li>
+    <li>web 应用的主流方式仍是放在 cookie 里。(可以少操心，但是不安全)</li>
+    <li>web 应用也将cookie存在在内存，或者 localstorage 里面，每次请求，则需要前端程序主动获取，更安全（防止csrf攻击，推荐）</li>
+  </ul>
+  <h3>「token 的过期」</h3>
+  <div>把「过期时间」和数据一起塞进去，验证时判断就好。但是如果存在 localstorage 则有可能被串改时间，此时要注意验证防串改</div>
+  <ul>
+    <li>将 过期时间存在后端，进行判断（不推荐，无法摆脱session）</li>
+    <li>对token进行签名（私钥加密，公钥解密的一种方式），加解密行为只在后端完成，token 同时包含签名串（是对验证信息进行加密的过程）和验证信息，后端对签名串进行解密之后与验证信息进行比较，（或者对验证信息进行签名与签名串比较，签名过程加盐）（推荐）</li>
+  </ul>
+  <h3>token 的编码</h3>
+  <div>对 token进行base64编码，并将这个码进行 <strong style="color: brown;">签名</strong> ，同时传给前端，后端通过反签名或者对token信息继续签名的方式对比token是否被串改</div>
+  <img src="./assets/token防串改.png" alt="" style="max-width: 600px;">
+  <h1>「JWT」</h1>
+  <div>JSON Web Token (JWT) 是一个开放标准，定义了一种传递 JSON 信息的方式。这些信息通过数字签名确保可信。</div>
+  <div>
+    <h5>jwt 长相</h5> 
+    eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyaWQiOiJhIiwiaWF0IjoxNTUxOTUxOTk4fQ.2jf3kl_uKWRkwjOP6uQRJFqMlwSABcgqqcJofFH5XCo 
+  </div>
+  <h5>jwt一般所包含的信息规范</h5>
+  <img src="./assets/jwt解析.png" alt="" srcset="" style="max-width: 600px;">
+  <h1>refresh token</h1>
+  <ul>
+    <li>token，作为权限守护者，最重要的就是「安全」。业务接口用来鉴权的 token，我们称之为 <strong style="color: brown;">access token</strong> 。</li>
+    <li>越是权限敏感的业务，我们越希望 access token 有效期足够短，以避免<strong style="color: brown;">被盗用</strong> 。</li>
+    <li>但过短的有效期会造成 access token 经常过期，过期后怎么办呢？</li>
+    <li>一种办法是，让用户重新登录获取新 token，显然不够友好，要知道有的 access token 过期时间可能只有几分钟。</li>
+    <li>另外一种办法是，再来一个 token，<span style="color: brown;">一个专门生成 access token 的 token，我们称为 refresh token</span> 。</li>
+  </ul>
+  <h5>refresh token 优点</h5>
+  <ul>
+    <li>access token 用来访问业务接口，由于有效期足够短，盗用风险小，也可以使请求方式更宽松灵活</li>
+    <li>refresh token 用来获取 access token，有效期可以长一些，通过独立服务和严格的请求方式增加安全性；由于不常验证，也可以如前面的 session 一样处理</li>
+  </ul>
+  <div>有了 refresh token 后，几种情况的请求流程变成这样：</div>
+  <img src="./assets/refresh-token请求流程.png" alt="" style="max-width: 600px;">
+  <div>如果 refresh token 也过期了，就只能重新登录了。</div>
+  <h3>session 和 token</h3>
+  <ul>
+    <li>session 和 token 都是边界很模糊的概念，就像前面说的，refresh token 也可能以 session 的形式组织维护。</li>
+    <li>狭义上，我们通常认为 session 是 <strong style="color: brown;">「种在 cookie 上、数据存在服务端」</strong> 的认证方案，token 是 <strong style="color: brown;">「客户端存哪都行、数据存在 token 里」</strong> 的认证方案。</li>
+    <li>对 session 和 token 的对比本质上是「客户端存 cookie / 存别地儿」、「服务端存数据 / 不存数据」的对比。</li>
+  </ul>
+  <h1>多系统共用单个登录系统</h1>
+  <div>背景：随着业务线越来越复杂，很多业务都会被分散到不同的域名下面，就需要统一登录，全线通用的能力</div>
+  <h3>“虚假”的统一系统登录（主域名相同）</h3>
+  <div>简单的，如果业务系统都在同一主域名下，比如wenku.baidu.com tieba.baidu.com，就好办了。可以直接把 cookie domain 设置为主域名 baidu.com，百度也就是这么干的。</div>
+  <h3>“真实”的统一系统登录（主域名不同）</h3>
+  <div>比如滴滴这么潮的公司，同时拥有didichuxing.com xiaojukeji.com didiglobal.com等域名，种 cookie 是完全绕不开的。这要能实现「一次登录，全线通用」，才是真正的单点登录。这种场景下，我们需要 <strong style="color: brown;">独立的认证服务</strong> ，通常被称为 SSO。「一次「从 A 系统引发登录，到 B 系统不用登录」的完整流程」</div>
+  <img src="./assets/认证服务.png" alt="" srcset="" style="max-width: 600px;">
+  <ul>
+    <li>用户进入 A 系统，没有登录凭证（ticket），A 系统给他跳到 SSO</li>
+    <li>SSO 没登录过，也就没有 sso 系统下没有凭证（注意这个和前面 A ticket 是两回事），输入账号密码登录</li>
+    <li>SSO 账号密码验证成功，通过接口返回做两件事：一是种下 sso 系统下凭证（记录用户在 SSO 登录状态）；二是下发一个 ticket</li>
+    <li>客户端拿到 ticket，保存起来，带着请求系统 A 接口</li>
+    <li>系统 A 校验 ticket，成功后正常处理业务请求</li>
+    <li>此时用户第一次进入系统 B，没有登录凭证（ticket），B 系统给他跳到 SSO</li>
+    <li>SSO 登录过，系统下有凭证，不用再次登录，只需要下发 ticket</li>
+    <li>客户端拿到 ticket，保存起来，带着请求系统 B 接口</li>
+  </ul>
+  <h3>完整版本：考虑浏览器的场景」</h3>
+  <div>上面的过程看起来没问题，实际上很多 APP 等端上这样就够了（token存在客户端的公共存储区域，在该客户端内的系统都可以获取到这个token)。但在浏览器下不见得好用。看这里：</div>
+  <img src="./assets/存储token.png" alt="" srcset="" style="max-width: 600px;">
+  <div>对浏览器来说，SSO 域下返回的数据要怎么存，才能在访问 A 的时候带上？ <strong style="color: brown;">浏览器对跨域有严格限制</strong> ，cookie、localStorage 等方式都是有域限制的。这就需要也只能由 A 提供 A 域下存储凭证的能力。一般我们是这么做的：</div>
+  <img src="./assets/浏览器端单一登录.png" alt="" srcset="" style="max-width: 800px;">
+  <div>图中我们通过颜色把浏览器当前所处的域名标记出来。注意图中灰底文字说明部分的变化。</div>
+  <ul>
+    <li>在 SSO 域下，SSO 不是通过接口把 ticket 直接返回，而是通过一个带 code 的 URL 重定向到系统 A 的接口上，这个接口通常在 A 向 SSO 注册时约定</li>
+    <li>浏览器被重定向到 A 域下，带着 code 访问了 A 的 callback 接口，callback 接口通过 code 换取 ticket    </li>
+    <li>这个 code 不同于 ticket，code 是一次性的，暴露在 URL 中，只为了传一下换 ticket，换完就失效    </li>
+    <li>callback 接口拿到 ticket 后，在自己的域下 set cookie 成功</li>
+    <li>在后续请求中，只需要把 cookie 中的 ticket 解析出来，去 SSO 验证就好</li>
+    <li>访问 B 系统也是一样</li>
+  </ul>
+  <h1>总结</h1>
+  <ul>
+    <li>HTTP 是无状态的，为了维持前后请求，需要前端存储标记</li>
+    <li>cookie 是一种完善的标记方式，通过 HTTP 头或 js 操作，有对应的安全策略，是大多数状态管理方案的基石</li>
+    <li>session 是一种状态管理方案，前端通过 cookie 存储 id，后端存储数据，但后端要处理分布式问题</li>
+    <li>token 是另一种状态管理方案，相比于 session 不需要后端存储，数据全部存在前端，解放后端，释放灵活性</li>
+    <li>token 的编码技术，通常基于 base64，或增加加密算法防篡改，jwt 是一种成熟的编码方案</li>
+    <li>在复杂系统中，token 可通过 service token、refresh token 的分权，同时满足安全性和用户体验</li>
+    <li>session 和 token 的对比就是「用不用cookie」和「后端存不存」的对比</li>
+    <li>单一登录系统要求不同域下的系统「一次登录，全线通用」，通常由独立的 SSO 系统记录登录状态、下发 ticket，各业务系统配合存储和认证 ticket</li>
+  </ul>
+</body>
+</html>
