@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <h1>浏览器缓存</h1>
+  <h3>Web缓存种类</h3>
+  <ul>
+    <li>数据库缓存 （服务端）</li>
+    <li>CDN缓存 （网络层）</li>
+    <li>代理服务器缓存 （伪服务端）</li>
+    <li>浏览器缓存 （客户端和服务端）</li>
+  </ul>
+  <img src="./assets/browser-cache.png" alt="" >
+  <div>所谓浏览器缓存其实就是指在本地使用的计算机中开辟一个 <strong style="color: brown;">内存区</strong> ，同时也开辟一个硬盘区作为数据传输的 <strong style="color: brown;">缓冲区</strong> ，然后用这个缓冲区来暂时保存用户以前访问过的信息。</div>
+  <h3>浏览器缓存过程</h3>
+  <ul>
+    <li>强缓存</li>
+    <li>协商缓存</li>
+  </ul>
+  <h3>浏览器缓存位置一般分为四类</h3>
+  <div>Service Worker --> Memory Cache --> Disk Cache --> Push Cache。</div>
+  <h1>强缓存</h1>
+  <ul>
+    <li>状态码：200</li>
+    <li>我们第一次进入页面，请求服务器，然后服务器进行应答，浏览器会根据 <strong style="color: brown;">response Header</strong> 来判断是否对资源进行缓存，如果响应头中 <strong style="color: brown;">expires</strong> 、<strong style="color: brown;">pragma</strong> 或者 <strong style="color: brown;">cache-control</strong> 字段，代表这是 <strong style="color: brown;">强缓存</strong> ，浏览器就会把资源缓存在memory cache 或 disk cache中。</li>
+    <li>第二次请求时，浏览器判断请求参数，如果符合强缓存条件就直接返回状态码200，从本地缓存中拿数据。否则把响应参数存在request header请求头中，看是否符合协商缓存，符合则返回状态码304，不符合则服务器会返回全新资源。</li>
+  </ul>
+  <img src="./assets/缓存逻辑图.png" alt="" srcset="" style="max-width: 800px;">
+  <ul>
+    <li><strong>expires</strong>: HTTP1.0 缓存到期的时间戳 （使用本地时间判断，本地时间可修改）</li>
+    <li>
+      <strong>Cache-Control</strong>: HTTP1.1 的缓存字段， 优先级比 expires 高
+      <ul>
+        取值：
+        <li>public：资源客户端和服务器都可以缓存。</li>
+        <li>privite：资源只有客户端可以缓存。</li>
+        <li>no-cache：<strong style="color: brown;">客户端缓存资源</strong>， 但是是否缓存需要经过 <strong style="color: brown;">协商缓存</strong> 来验证。</li>
+        <li>no-store：<strong style="color: brown;">不使用缓存</strong> 。</li>
+        <li>
+          max-age：缓存保质期（相对时间，解决了expires的问题）<br/>
+          <img src="./assets/缓存响应头.png" alt="" srcset="">
+        </li>
+        <li>pragma：HTTP1.0中禁用网页缓存的字段，其取值为no-cache，和Cache-Control的no-cache效果一样。</li>
+      </ul>
+    </li>
+  </ul>
+  <h5>与缓存控制相关的HTTP头字段表，包含强缓存和弱缓存</h5>
+  <img src="./assets/缓存相关的tttp头字段.png" alt="" srcset="" style="max-width: 700px;">
+  <h3>缓存位置</h3>
+  <div>强缓存我们会把资源放到memory cache 和 disk cache中</div>
+  <img src="./assets/强缓存资源放置.png" alt="" srcset="" style="max-width: 600px;">
+  <ul>
+    <li>存储图像和网页等资源主要缓存在disk cache</li>
+    <li>操作系统缓存文件等资源大部分都会缓存在memory cache中</li>
+    <li>具体操作浏览器自动分配，看谁的资源利用率不高就分给谁。</li>
+    <li>查找浏览器缓存时会按顺序查找: Service Worker --> Memory Cache --> Disk Cache --> Push Cache。</li>
+  </ul>
+  <h5>1、Service Worker</h5>
+  <div>是运行在浏览器背后的独立线程，一般可以用来实现缓存功能。使用 Service Worker的话，传输协议必须为 HTTPS。因为 Service Worker 中涉及到请求拦截，所以必须使用 HTTPS 协议来保障安全。Service Worker 的缓存与浏览器其他内建的缓存机制不同，它可以让我们自由控制缓存哪些文件、如何匹配缓存、如何读取缓存，并且缓存是持续性的。</div>
+  <h5>2、Memory Cache</h5>
+  <div>内存中的缓存，主要包含的是当前中页面中已经抓取到的资源，例如页面上已经下载的样式、脚本、图片等。读取内存中的数据肯定比磁盘快，内存缓存虽然读取高效，可是缓存持续性很短，会随着进程的释放而释放。一旦我们 <strong style="color: brown;">关闭 Tab 页面</strong> ，内存中的缓存也就被释放了。</div>
+  <h5>3、Disk Cache</h5>
+  <ul>
+    <li>存储在硬盘中的缓存，读取速度慢点，但是什么都能存储到磁盘中，比之 Memory Cache 胜在容量和存储时效性上。</li>
+    <li>在所有浏览器缓存中，Disk Cache 覆盖面基本是最大的。它会根据 HTTP Herder 中的字段判断哪些资源需要缓存，哪些资源可以不请求直接使用，哪些资源已经过期需要重新请求。并且即使在跨站点的情况下，相同地址的资源一旦被硬盘缓存下来，就不会再次去请求数据。绝大部分的缓存都来自 Disk Cache。</li>
+    <li>memory cache 要比 disk cache 快的多。举个例子：从远程 web 服务器直接提取访问文件可能需要500毫秒(半秒)，那么磁盘访问可能需要10-20毫秒，而内存访问只需要100纳秒，更高级的还有 L1缓存访问(最快和最小的 CPU 缓存)只需要0.5纳秒。</li>
+    <li><strong style="color: brown;">prefetch cache(预取缓存)</strong> link标签上带了prefetch，再次加载会出现。prefetch是预加载的一种方式，被标记为prefetch的资源，将会被浏览器在空闲时间加载。</li>
+  </ul>
+  <h5>4、Push Cache</h5>
+  <div>Push Cache（推送缓存）是 HTTP/2 中的内容，当以上三种缓存都没有命中时，它才会被使用。它只在会话（Session）中存在，一旦会话结束就被释放，并且缓存时间也很短暂，在Chrome浏览器中只有5分钟左右，同时它也并非严格执行HTTP头中的缓存指令。</div>
+  <h5>5、CPU、内存、硬盘</h5>
+  <h1>协商缓存</h1>
+  <div>协商缓存就是强缓存失效后，浏览器携带缓存标识向服务器发送请求，由服务器根据缓存标识来决定是否使用缓存的过程。</div>
+  <ul>
+    主要有以下两种情况：
+    <li>
+      协商缓存生效，返回304 <br/>
+      <img src="./assets/协商缓存304.png" alt="" srcset="" style="max-width: 600px;">
+    </li>
+    <li>
+      协商缓存失效，返回200和请求结果 <br/>
+      <img src="./assets/协商缓存失败.png" alt="" srcset="" style="max-width: 600px;">
+    </li>
+  </ul>
+  <h3>协商缓存相关HTTP头字段</h3>
+  <ul>
+    <li>
+      Last-Modified / If-Modified-Since
+      <ul>
+        <li>Last-Modified：是服务器响应请求时，返回该资源文件在服务器最后被修改的时间。</li>
+        <li>If-Modified-Since：是客户端再次发起该请求时，携带上次请求返回的Last-Modified值，通过此字段值告诉服务器该资源上次请求返回的最后被修改时间。服务器收到该请求，发现请求头含有If-Modified-Since字段，则会根据If-Modified-Since的字段值与该资源在服务器的最后被修改时间做对比，若服务器的资源最后被修改时间大于If-Modified-Since的字段值，则重新返回资源，状态码为200；否则则返回304，代表资源无更新，可继续使用缓存文件。</li>
+      </ul>
+    </li>
+    <li>
+      Etag / If-None-Match
+        <ul>
+          <li>Etag：是服务器响应请求时，返回当前资源文件的一个唯一标识(由服务器生成)。</li>
+          <li>If-None-Match：是客户端再次发起该请求时，携带上次请求返回的唯一标识Etag值，通过此字段值告诉服务器该资源上次请求返回的唯一标识值。服务器收到该请求后，发现该请求头中含有If-None-Match，则会根据If-None-Match的字段值与该资源在服务器的Etag值做对比，一致则返回304，代表资源无更新，继续使用缓存文件；不一致则重新返回资源文件，状态码为200。          </li>
+        </ul>
+    </li>
+    <li>Etag / If-None-Match优先级高于Last-Modified / If-Modified-Since，同时存在则只有Etag / If-None-Match生效。</li>
+    <h1>缓存方案</h1>
+    <ul>
+      <li>HTML: 协商缓存；</li>
+      <li>css、js、图片：强缓存，文件名带上hash</li>
+    </ul>
+  </ul>
+</body>
+</html>
