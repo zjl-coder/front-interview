@@ -41,7 +41,7 @@
     <li>转换值如果有 <strong>toJSON()</strong> 方法，该方法定义什么值将被序列化。</li>
     <li><strong>非数组对象的属性</strong>(即值不为 [] 的属性，有可能属性会被忽略) 不能保证以特定的顺序出现在序列化后的字符串中。</li>
     <li><strong>布尔值、数字、字符串</strong> 的包装对象在序列化过程中会自动转换成对应的原始值。</li>
-    <li><strong>undefined</strong> 、任意的 <strong>函数</strong> 以及 <strong>symbol</strong> 值，在序列化过程中会 <strong>被忽略</strong> （出现在 <strong>非数组对象的属性值</strong> 中时）或者 <strong>被转换成 null</strong> （出现在 <strong>数组</strong> 中时）。函数、undefined 被 <strong>单独转换</strong> 时，会返回 <strong>undefined</strong> ，如JSON.stringify(function(){}) or JSON.stringify(undefined).</li>
+    <li><strong>undefined</strong> 、任意的 <strong>函数</strong> 以及 <strong>symbol</strong> 值，在序列化过程中会 <strong>被忽略</strong> （出现在 <strong>非数组对象的属性值</strong> 中时）或者 <strong>被转换成 null</strong> （出现在 <strong>数组</strong> 中时）。函数、undefined、Symbol 被 <strong>单独转换</strong> 时，会返回 <strong>undefined</strong> ，如JSON.stringify(function(){}) or JSON.stringify(undefined) or JSON.stringify(Symbol('a')).</li>
     <li>对包含 <strong>循环引用</strong> 的对象（对象之间相互引用，形成无限循环）执行此方法，会 <strong>抛出错误</strong> TypeError ("cyclic object value") 。</li>
     <li>所有以 <strong>symbol 为属性键</strong> 的属性都会被完全 <strong>忽略</strong> 掉，即便 replacer 参数中强制指定包含了它们。</li>
     <li><strong>Date</strong> 日期调用了 toJSON() 将其转换为了 string 字符串（同Date.toISOString()），因此会被当做 <strong>字符串</strong> 处理。</li>
