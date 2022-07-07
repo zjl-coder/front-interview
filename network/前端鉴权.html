@@ -75,6 +75,7 @@
     </code>
   </pre>
   <div>http请求时cookie会带上 username height weight，但http头不会带上domain，一个是有origin值，另一个是因为后端发送http头时，浏览器已经对域名做了筛选了</div>
+  <div>服务端响应请求时set-cookie头字段会带上 username height weight，和对应的domain，浏览器依据domian存cookie。（只能存在当前相同的一级域名下，其他域名无法存储，比如：a.qq.com 可以存 qq.com、b.qq.com 但是不能存baidu.com）</div>
   <h3>cookie 的读写</h3>
   <div>document.cookie 可以在在前端读写cookie 也可以读和修改非 httpOnly 下的cookie。（HTTPOnly下如果同名cookie键名，不会覆盖后端设置的cookie）</div>
   <h1>session</h1>
